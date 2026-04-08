@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="kn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jnaana Setu (ಜ್ಞಾನ ಸೇತು) - Vidya Punters</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        :root {
+            --primary: #c0392b; 
+            --secondary: #27ae60; 
+            --accent: #2980b9; 
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg); margin: 0; padding-bottom: 80px; }
+        
+        /* Login/Mission Overlay */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--primary), #8e44ad);
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+            flex-direction: column; color: white; overflow-y: auto;
+        }
+        .login-card {
+            background: white; padding: 2rem; border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center;
+            width: 90%; max-width: 450px; color: var(--text-main); margin: 20px 0;
+        }
+        .login-input {
+            width: 100%; padding: 12px; margin: 15px 0;
+            border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; text-align: center;
+        }
+        .pay-btn {
+            width: 100%; padding: 15px; background-color: #27ae60;
+            color: white; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer;
+            font-weight: bold; transition: 0.3s;
+        }
+        
+        /* Category Chips */
+        .cat-scroll {
+            display: flex; overflow-x: auto; padding: 10px; background: white;
+            gap: 10px; position: sticky; top: 70px; z-index: 90;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); white-space: nowrap;
+        }
+        .cat-chip {
+            padding: 8px 15px; background: #eee; border-radius: 20px;
+            font-size: 0.9rem; cursor: pointer;
+        }
+        .cat-chip.active { background: var(--accent); color: white; }
+        .cat-chip.locked { background: #f39c12; color: white; }
+
+        /* App Layout */
+        #appContent { display: none; }
+        header {
+            background: var(--primary); color: white; padding: 15px;
+            position: sticky; top: 0; z-index: 100; height: 70px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .word-card {
+            background: var(--card-bg); border-radius: 12px;
+            padding: 15px; margin: 15px; border-left: 5px solid var(--accent);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+        .en-term { font-size: 1.3rem; font-weight: bold; color: var(--primary); }
+        .kn-term { font-size: 1.1rem; color: var(--secondary); font-weight: bold; margin-top: 5px; }
+        .def-box { margin-top: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; }
+        .speak-btn { float: right; background: none; border: none; font-size: 1.4rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h1 style="margin:0; color: var(--primary);">Jnaana Setu</h1>
+            <p style="font-weight:bold;">Vidya Punters Educational Series</p>
+            <p style="font-size: 0.9rem; color: #555;">Bridging the gap for Grade 1-12 & College students to master English technical terms in Kannada.</p>
+            
+            <div style="background: #eaf2f8; padding: 10px; border-radius: 8px; text-align: left; font-size: 0.85rem; border: 1px solid #2980b9;">
+                <strong>📚 Full Access (Grade 1-10): ₹90</strong><br>
+                Includes Science, Math, and Social Studies bridge vocabulary.
+            </div>
+
+            <input type="tel" id="phoneInput" class="login-input" placeholder="Enter 10-digit Mobile Number">
+            
+            <button class="pay-btn" onclick="startRazorpay('school')">Pay ₹90 & Start Learning</button>
+            <p style="font-size: 0.7rem; color: #aaa; margin-top: 10px;">Already paid? Login above. Locked to 1 device.</p>
+        </div>
+    </div>
+
+    <div id="appContent">
+        <header>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0; font-size:1.1rem;">ಜ್ಞಾನ ಸೇತು</h2>
+                <span id="subStatus" style="font-size:0.7rem; background:#fff; color:#c0392b; padding:2px 6px; border-radius:10px;">School Only</span>
+            </div>
+            <input type="text" id="searchInput" placeholder="Search word / ಪದ ಹುಡುಕಿ..." onkeyup="filterContent()" style="width:100%; padding:8px; border-radius:20px; border:none; margin-top:5px;">
+        </header>
+
+        <div class="cat-scroll" id="categoryList"></div>
+        <div id="contentArea"></div>
+    </div>
+
+<script>
+    // CONFIGURATION
+    const RAZORPAY_KEY = "YOUR_KEY_HERE"; // Put your Razorpay Key ID here
+    let hasCollegeAccess = false; // Set to true after payment
+
+    const db = [
+        // --- COLLEGE TERMS: COMMERCE ---
+        {cat: "College-Commerce", en: "Agenda (ಅಜೆಂಡಾ)", kn: "ಸಭೆಯ ಕಾರ್ಯಸೂಚಿ", def: "A list of items to be discussed or acted upon during a meeting.", kdef: "ಸಭೆಯಲ್ಲಿ ಚರ್ಚಿಸಬೇಕಾದ ವಿಷಯಗಳ ಕ್ರಮಬದ್ಧ ಪಟ್ಟಿ."},
+        {cat: "College-Commerce", en: "Amortization (ಅಮೋರ್ಟೈಸೇಶನ್)", kn: "ಅಮೋರ್ಟೈಸೇಶನ್ / ಮೌಲ್ಯ ಇಳಿಕೆ", def: "Gradually writing off the initial cost of an intangible asset over time.", kdef: "ಕಣ್ಣಿಗೆ ಕಾಣದ ಆಸ್ತಿಗಳ (ಉದಾ: ನಲ್ಪೆಸರು) ಮೌಲ್ಯವನ್ನು ಹಂತಹಂತವಾಗಿ ಕಡಿಮೆ ಮಾಡುವುದು."},
+        {cat: "College-Commerce", en: "Articles of Association (ಆರ್ಟಿಕಲ್ಸ್ ಆಫ್ ಅಸೋಸಿಯೇಶನ್)", kn: "ಸಂಘದ ಉಪನಿಯಮಗಳು", def: "The rules and regulations governing the internal management of a company.", kdef: "ಕಂಪನಿಯ ಆಂತರಿಕ ಆಡಳಿತ ಮತ್ತು ನಿಯಮಗಳನ್ನು ತಿಳಿಸುವ ದಾಖಲೆ."},
+        {cat: "College-Commerce", en: "Authorised Capital (ಆಥರೈಸ್ಡ್ ಕ್ಯಾಪಿಟಲ್)", kn: "ಅಧಿಕೃತ ಬಂಡವಾಳ", def: "The maximum amount of share capital a company is allowed to issue.", kdef: "ಒಂದು ಕಂಪನಿಯು ವಿತರಿಸಬಹುದಾದ ಗರಿಷ್ಠ ಪ್ರಮಾಣದ ಷೇರು ಬಂಡವಾಳ."},
+        
+        // --- COLLEGE TERMS: PHYSICS ---
+        {cat: "College-Physics", en: "Accurate (ಅಕ್ಯುರೇಟ್)", kn: "ನಿಖರ", def: "Refers to how close a measurement is to the true or accepted value.", kdef: "ಅಳತೆ ಮಾಡಿದ ಮೌಲ್ಯವು ನೈಜ ಮೌಲ್ಯಕ್ಕೆ ಎಷ್ಟು ಹತ್ತಿರದಲ್ಲಿದೆ ಎಂಬ ಅಳತೆ."},
+        {cat: "College-Physics", en: "Buoyancy (ಬಯಾನ್ಸಿ)", kn: "ಪ್ಲವನತೆ", def: "The upward force exerted by a fluid that opposes the weight of an object.", kdef: "ನೀರಿನಲ್ಲಿ ಮುಳುಗಿದ ವಸ್ತುವನ್ನು ಮೇಲಕ್ಕೆ ತಳ್ಳುವ ದ್ರವದ ಬಲ."},
+        {cat: "College-Physics", en: "Centripetal Force (ಸೆಂಟ್ರಿಪಿಟಲ್ ಫೋರ್ಸ್)", kn: "ಅಭಿಕೇಂದ್ರ ಬಲ", def: "A force that acts on a body moving in a circular path directed towards center.", kdef: "ವೃತ್ತಾಕಾರದ ಹಾದಿಯಲ್ಲಿ ಚಲಿಸುವ ವಸ್ತುವಿನ ಮೇಲೆ ಕೇಂದ್ರದ ಕಡೆಗೆ ಕಾರ್ಯನಿರ್ವಹಿಸುವ ಬಲ."},
+        
+        // --- GRADE 1-10 DATA (Simplified Sample) ---
+        {cat: "Grade 4 Science", en: "Gravity (ಗ್ರಾವಿಟಿ)", kn: "ಗುರುತ್ವಾಕರ್ಷಣೆ", def: "The force that pulls everything towards the Earth.", kdef: "ಎಲ್ಲವನ್ನೂ ಭೂಮಿಯ ಕಡೆಗೆ ಎಳೆಯುವ ಬಲ. (ಉದಾ: ಹಣ್ಣು ಮರದಿಂದ ಕೆಳಗೆ ಬೀಳುವುದು)"}
+    ];
+
+    function startRazorpay(type) {
+        const amount = (type === 'school') ? 9000 : 6000;
+        const options = {
+            "key": RAZORPAY_KEY,
+            "amount": amount,
+            "currency": "INR",
+            "name": "Vidya Punters",
+            "description": type === 'school' ? "School Vocabulary Access" : "College Vocabulary Upgrade",
+            "handler": function (response){
+                alert("Payment Successful!");
+                if(type === 'school') showApp();
+                else unlockCollege();
+            }
+        };
+        const rzp = new Razorpay(options);
+        rzp.open();
+    }
+
+    function showApp() {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('appContent').style.display = 'block';
+        loadCategories();
+        filterSmart('All');
+    }
+
+    function unlockCollege() {
+        hasCollegeAccess = true;
+        document.getElementById('subStatus').innerText = "Full Access (College)";
+        document.getElementById('subStatus').style.background = "#27ae60";
+        loadCategories();
+        filterSmart('College-Physics');
+    }
+
+    function loadCategories() {
+        const list = document.getElementById('categoryList');
+        list.innerHTML = `<div class="cat-chip active" onclick="filterSmart('All')">All</div>`;
+        for(let i=1; i<=10; i++) {
+            list.innerHTML += `<div class="cat-chip" onclick="filterSmart('Grade ${i}')">Grade ${i}</div>`;
+        }
+        
+        // College Section
+        let collegeStyle = hasCollegeAccess ? "cat-chip" : "cat-chip locked";
+        let collegeAction = hasCollegeAccess ? "filterSmart('College')" : "askToUnlockCollege()";
+        list.innerHTML += `<div class="${collegeStyle}" onclick="${collegeAction}">🎓 College Terms (Locked)</div>`;
+    }
+
+    function askToUnlockCollege() {
+        if(confirm("College terms (Physics/Commerce) require an additional ₹60. Would you like to pay now?")) {
+            startRazorpay('college');
+        }
+    }
+
+    function filterSmart(val) {
+        const filtered = db.filter(item => {
+            if(val === 'All') return true;
+            if(val === 'College') return item.cat.includes('College');
+            return item.cat.includes(val);
+        });
+        render(filtered);
+    }
+
+    function render(data) {
+        const area = document.getElementById('contentArea');
+        area.innerHTML = data.map(item => `
+            <div class="word-card">
+                <div class="en-term">${item.en} <button class="speak-btn" onclick="speak('${item.en}', 'en-US')">🔊</button></div>
+                <div class="kn-term">${item.kn} <button class="speak-btn" onclick="speak('${item.kn}', 'kn-IN')">🔊</button></div>
+                <div class="def-box">
+                    <p><strong>Eng:</strong> ${item.def}</p>
+                    <p><strong>ಕನ್ನಡ:</strong> ${item.kdef}</p>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function speak(text, lang) {
+        const utt = new SpeechSynthesisUtterance(text.replace(/\(.*\)/, ''));
+        utt.lang = lang;
+        window.speechSynthesis.speak(utt);
+    }
+</script>
+</body>
+</html>
